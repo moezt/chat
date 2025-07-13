@@ -108,11 +108,11 @@ function App() {
           type="text"
           name="content"
           className="ten columns my-input-text"
-          placeholder={`Hello ${name}! Type a message...`}
+          placeholder={`你好 ${name}! 输入一些信息吧...`}
           autoComplete="off"
         />
         <button type="submit" className="send-message two columns">
-          Send
+          发送
         </button>
       </form>
     </div>
