@@ -618,8 +618,8 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        {/* 顶部导航栏 */}
-        <AppBar position="static" elevation={1}>
+        {/* 顶部导航栏 - 修改为固定位置 */}
+        <AppBar position="fixed" elevation={1}>
           <Toolbar>
             <ChatIcon sx={{ mr: 2 }} />
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
@@ -644,6 +644,8 @@ function App() {
             </Tooltip>
           </Toolbar>
         </AppBar>
+        {/* 添加工具栏占位符，防止内容被固定的AppBar覆盖 */}
+        <Toolbar />
 
         {/* 聊天消息区域 */}
         <Container maxWidth="md" sx={{ flex: 1, display: 'flex', flexDirection: 'column', py: 2 }}>
@@ -768,7 +770,7 @@ function App() {
               </Box>
             )}
 
-            {/* 输入区域 */}
+            {/* 输入区域 - 修改为固定在底部 */}
             <Box
               component="form"
               onSubmit={handleSubmit}
@@ -777,7 +779,11 @@ function App() {
                 borderTop: replyTo ? 0 : 1,
                 borderColor: 'divider',
                 display: 'flex',
-                gap: 1
+                gap: 1,
+                position: 'sticky',
+                bottom: 0,
+                bgcolor: theme.palette.background.paper,
+                zIndex: 1
               }}
             >
               <TextField
