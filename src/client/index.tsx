@@ -616,9 +616,14 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        {/* 顶部导航栏 - 修改为固定位置 */}
-        <AppBar position="fixed" elevation={1}>
+      <Box sx={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
+        {/* 顶部导航栏 - 固定在顶部 */}
+        <AppBar position="fixed" elevation={1} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar>
             <ChatIcon sx={{ mr: 2 }} />
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
@@ -643,285 +648,304 @@ function App() {
             </Tooltip>
           </Toolbar>
         </AppBar>
-        {/* 添加工具栏占位符，防止内容被固定的AppBar覆盖 */}
+
+        {/* 顶部工具栏占位符 */}
         <Toolbar />
 
-        {/* 聊天消息区域 */}
-        <Container maxWidth="md" sx={{ flex: 1, display: 'flex', flexDirection: 'column', py: 2 }}>
-          <Paper
-            elevation={2}
+        {/* 聊天消息区域 - 可滚动区域，占据除了顶部和底部之外的所有空间 */}
+        <Box sx={{
+          flex: 1,
+          overflow: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          mb: 0
+        }}>
+          <Container
+            maxWidth="md"
             sx={{
               flex: 1,
               display: 'flex',
               flexDirection: 'column',
-              overflow: 'hidden'
+              py: 2,
+              pb: 0
             }}
           >
-            <Box
+            <Paper
+              elevation={2}
               sx={{
                 flex: 1,
-                overflow: 'auto',
-                p: 1,
-                scrollBehavior: 'smooth',
-                '&::-webkit-scrollbar': {
-                  width: '8px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: 'transparent',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                  borderRadius: '4px',
-                },
-                '&::-webkit-scrollbar-thumb:hover': {
-                  background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
-                }
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                mb: 0
               }}
             >
-              {/* 消息列表 */}
-              <List>
-                {messages.map((message) => (
-                  <ListItem
-                    key={message.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      py: 1,
-                      bgcolor: 'transparent',
-                      borderRadius: 1
-                    }}
-                  >
-                    <Avatar
-                      sx={{
-                        bgcolor: getAvatarColor(message.user),
-                        mr: 2,
-                        width: 40,
-                        height: 40
-                      }}
-                    >
-                      {message.user.charAt(0).toUpperCase()}
-                    </Avatar>
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>
-                          {message.user}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatDateTime(message.timestamp)}
-                        </Typography>
-                      </Box>
-
-                      {/* 嵌套引用消息 */}
-                      {message.replyTo && (
-                        <NestedQuote
-                          message={message.replyTo}
-                          theme={theme}
-                        />
-                      )}
-
-                      <ListItemText
-                        primary={message.content}
-                        sx={{ mt: 0.5 }}
-                      />
-
-                      {/* 消息操作按钮 */}
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleReply(message)}
-                          sx={{ p: 0.5 }}
-                        >
-                          <ReplyIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    </Box>
-                  </ListItem>
-                ))}
-              </List>
-
-              {/* 输入状态提示 */}
-              {Object.entries(typingUsers)
-                .filter(([, isTyping]) => isTyping)
-                .map(([user]) => user)
-                .length > 0 && (
-                  <Box sx={{ p: 1, display: 'flex', alignItems: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                      {Object.entries(typingUsers)
-                        .filter(([, isTyping]) => isTyping)
-                        .map(([user]) => user)
-                        .join(', ')} 正在输入...
-                    </Typography>
-                  </Box>
-                )}
-
-              <div ref={messagesEndRef} />
-            </Box>
-
-            {/* 回复预览区域 - 固定在底部 */}
-            {replyTo && (
               <Box
                 sx={{
-                  p: 1.5,
-                  borderTop: 1,
-                  borderColor: 'divider',
-                  bgcolor: alpha(theme.palette.primary.main, 0.05),
-                  position: 'sticky',
-                  bottom: 'auto',
-                  zIndex: 2
+                  flex: 1,
+                  overflow: 'auto',
+                  p: 1,
+                  scrollBehavior: 'smooth',
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    background: 'transparent',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                    borderRadius: '4px',
+                  },
+                  '&::-webkit-scrollbar-thumb:hover': {
+                    background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+                  }
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                  <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <ReplyIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                        回复消息:
+                {/* 消息列表 */}
+                <List>
+                  {messages.map((message) => (
+                    <ListItem
+                      key={message.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        py: 1,
+                        bgcolor: 'transparent',
+                        borderRadius: 1
+                      }}
+                    >
+                      <Avatar
+                        sx={{
+                          bgcolor: getAvatarColor(message.user),
+                          mr: 2,
+                          width: 40,
+                          height: 40
+                        }}
+                      >
+                        {message.user.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>
+                            {message.user}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDateTime(message.timestamp)}
+                          </Typography>
+                        </Box>
+
+                        {/* 嵌套引用消息 */}
+                        {message.replyTo && (
+                          <NestedQuote
+                            message={message.replyTo}
+                            theme={theme}
+                          />
+                        )}
+
+                        <ListItemText
+                          primary={message.content}
+                          sx={{ mt: 0.5 }}
+                        />
+
+                        {/* 消息操作按钮 */}
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleReply(message)}
+                            sx={{ p: 0.5 }}
+                          >
+                            <ReplyIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    </ListItem>
+                  ))}
+                </List>
+
+                {/* 输入状态提示 */}
+                {Object.entries(typingUsers)
+                  .filter(([, isTyping]) => isTyping)
+                  .map(([user]) => user)
+                  .length > 0 && (
+                    <Box sx={{ p: 1, display: 'flex', alignItems: 'center' }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        {Object.entries(typingUsers)
+                          .filter(([, isTyping]) => isTyping)
+                          .map(([user]) => user)
+                          .join(', ')} 正在输入...
                       </Typography>
                     </Box>
-                    {/* 显示完整的嵌套引用结构 */}
-                    <NestedQuote
-                      message={replyTo}
-                      theme={theme}
-                      maxDepth={2} // 在预览区域限制深度
-                    />
-                  </Box>
-                  <IconButton size="small" onClick={handleCancelReply} sx={{ ml: 1 }}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </Box>
+                  )}
+
+                <div ref={messagesEndRef} />
               </Box>
-            )}
 
-            {/* 输入区域 - 固定在底部，不参与滚动 */}
-            <Box
-              component="form"
-              onSubmit={handleSubmit}
-              sx={{
-                p: 2,
-                borderTop: replyTo ? 0 : 1,
-                borderColor: 'divider',
-                display: 'flex',
-                gap: 1,
-                bgcolor: theme.palette.background.paper,
-                flexShrink: 0, // 防止被压缩
-              }}
-            >
-              <TextField
-                fullWidth
-                variant="outlined"
-                placeholder={`你好 ${name}! 输入一些信息吧...`}
-                value={inputValue}
-                onChange={handleInputChange}
-                autoComplete="off"
-                sx={{ flex: 1 }}
-              />
-              <IconButton
-                onClick={handleEmojiClick}
-                color="primary"
-                sx={{
-                  color: 'primary.main',
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  '&:hover': {
-                    bgcolor: 'primary.light',
-                    color: 'white',
-                  }
-                }}
-              >
-                <EmojiIcon />
-              </IconButton>
-              <IconButton
-                type="submit"
-                color="primary"
-                disabled={!inputValue.trim()}
-                sx={{
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                  },
-                  '&:disabled': {
-                    bgcolor: 'grey.300',
-                    color: 'grey.500',
-                  }
-                }}
-              >
-                <SendIcon />
-              </IconButton>
-            </Box>
-
-            {/* 颜文字选择器 - 调整位置 */}
-            <Popover
-              open={emojiOpen}
-              anchorEl={emojiAnchorEl}
-              onClose={handleEmojiClose}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              transformOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
-              }}
-            >
-              <Box sx={{ p: 2, maxWidth: 400, maxHeight: 500, overflow: 'auto' }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
-                  选择颜文字
-                </Typography>
-                {kaomojis.map((category, categoryIndex) => (
-                  <Box key={categoryIndex} sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
-                      {category.title}
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {category.items.map((kaomoji, index) => (
-                        <Button
-                          key={index}
-                          onClick={() => handleEmojiSelect(kaomoji)}
-                          sx={{
-                            minWidth: 'auto',
-                            minHeight: 32,
-                            fontSize: '0.9rem',
-                            p: 0.5,
-                            fontFamily: 'monospace',
-                            '&:hover': {
-                              bgcolor: 'primary.light',
-                              color: 'white',
-                            },
-                            transition: 'all 0.2s ease',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {kaomoji}
-                        </Button>
-                      ))}
+              {/* 回复预览区域 - 固定在底部 */}
+              {replyTo && (
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                    position: 'sticky',
+                    bottom: 'auto',
+                    zIndex: 2
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <ReplyIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                          回复消息:
+                        </Typography>
+                      </Box>
+                      {/* 显示完整的嵌套引用结构 */}
+                      <NestedQuote
+                        message={replyTo}
+                        theme={theme}
+                        maxDepth={2} // 在预览区域限制深度
+                      />
                     </Box>
+                    <IconButton size="small" onClick={handleCancelReply} sx={{ ml: 1 }}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
                   </Box>
-                ))}
-              </Box>
-            </Popover>
-          </Paper>
+                </Box>
+              )}
 
-          {/* 用户信息 - 增加底部边距，确保不被输入区域遮挡 */}
-          <Box sx={{ mt: 2, mb: 3, textAlign: 'center', pb: 1 }}>
-            <Chip
-              avatar={
-                <Avatar sx={{ 
-                  bgcolor: getAvatarColor(name),
-                  color: '#ffffff' // 确保头像中的文字颜色为白色
-                }}>
-                  {name.charAt(0).toUpperCase()}
-                </Avatar>
-              }
-              label={`当前用户: ${name}`}
-              variant="outlined"
-            />
-          </Box>
-        </Container>
+              {/* 输入区域 - 固定在底部，不参与滚动 */}
+              <Box
+                component="form"
+                onSubmit={handleSubmit}
+                sx={{
+                  p: 2,
+                  borderTop: replyTo ? 0 : 1,
+                  borderColor: 'divider',
+                  display: 'flex',
+                  gap: 1,
+                  bgcolor: theme.palette.background.paper,
+                  flexShrink: 0, // 防止被压缩
+                }}
+              >
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  placeholder={`你好 ${name}! 输入一些信息吧...`}
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  autoComplete="off"
+                  sx={{ flex: 1 }}
+                />
+                <IconButton
+                  onClick={handleEmojiClick}
+                  color="primary"
+                  sx={{
+                    color: 'primary.main',
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    '&:hover': {
+                      bgcolor: 'primary.light',
+                      color: 'white',
+                    }
+                  }}
+                >
+                  <EmojiIcon />
+                </IconButton>
+                <IconButton
+                  type="submit"
+                  color="primary"
+                  disabled={!inputValue.trim()}
+                  sx={{
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    '&:hover': {
+                      bgcolor: 'primary.dark',
+                    },
+                    '&:disabled': {
+                      bgcolor: 'grey.300',
+                      color: 'grey.500',
+                    }
+                  }}
+                >
+                  <SendIcon />
+                </IconButton>
+              </Box>
+
+              {/* 颜文字选择器 - 调整位置 */}
+              <Popover
+                open={emojiOpen}
+                anchorEl={emojiAnchorEl}
+                onClose={handleEmojiClose}
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                transformOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'right',
+                }}
+              >
+                <Box sx={{ p: 2, maxWidth: 400, maxHeight: 500, overflow: 'auto' }}>
+                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
+                    选择颜文字
+                  </Typography>
+                  {kaomojis.map((category, categoryIndex) => (
+                    <Box key={categoryIndex} sx={{ mb: 2 }}>
+                      <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+                        {category.title}
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {category.items.map((kaomoji, index) => (
+                          <Button
+                            key={index}
+                            onClick={() => handleEmojiSelect(kaomoji)}
+                            sx={{
+                              minWidth: 'auto',
+                              minHeight: 32,
+                              fontSize: '0.9rem',
+                              p: 0.5,
+                              fontFamily: 'monospace',
+                              '&:hover': {
+                                bgcolor: 'primary.light',
+                                color: 'white',
+                              },
+                              transition: 'all 0.2s ease',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {kaomoji}
+                          </Button>
+                        ))}
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </Popover>
+            </Paper>
+
+            {/* 用户信息 - 增加底部边距，确保不被输入区域遮挡 */}
+            <Box sx={{ mt: 2, mb: 3, textAlign: 'center', pb: 1 }}>
+              <Chip
+                avatar={
+                  <Avatar sx={{
+                    bgcolor: getAvatarColor(name),
+                    color: '#ffffff' // 确保头像中的文字颜色为白色
+                  }}>
+                    {name.charAt(0).toUpperCase()}
+                  </Avatar>
+                }
+                label={`当前用户: ${name}`}
+                variant="outlined"
+              />
+            </Box>
+          </Container>
+        </Box>
       </Box>
     </ThemeProvider>
   );
