@@ -43,6 +43,44 @@ import {
 
 import { names, type ChatMessage, type Message } from "../shared";
 
+// 格式化时间显示函数
+const formatDateTime = (timestamp: number) => {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  // 判断是否是今天
+  if (messageDate.getTime() === today.getTime()) {
+    return `今天 ${date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit'
+    })}`;
+  }
+  
+  // 判断是否是昨天
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (messageDate.getTime() === yesterday.getTime()) {
+    return `昨天 ${date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit'
+    })}`;
+  }
+  
+  // 其他日期显示完整日期时间
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
 // 递归引用组件
 const NestedQuote: React.FC<{
   message: ChatMessage;
@@ -651,7 +689,7 @@ function App() {
                           {message.user}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {new Date(message.timestamp).toLocaleTimeString()}
+                          {formatDateTime(message.timestamp)}
                         </Typography>
                       </Box>
 
