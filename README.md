@@ -1,38 +1,38 @@
-# Durable Chat App
+# 实时聊天应用
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/durable-chat-template)
+[![部署到 Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/durable-chat-template)
 
-![Template Preview](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/da00d330-9a3b-40a2-e6df-b08813fb7200/public)
+![模板预览](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/da00d330-9a3b-40a2-e6df-b08813fb7200/public)
 
 <!-- dash-content-start -->
 
-With this template, you can deploy your own chat app to converse with other users in real-time. Going to the [demo website](https://durable-chat-template.templates.workers.dev) puts you into a unique chat room based on the ID in the url. Share that ID with others to chat with them! This is powered by [Durable Objects](https://developers.cloudflare.com/durable-objects/) and [PartyKit](https://www.partykit.io/).
+使用此模板，您可以部署自己的聊天应用，与其他用户进行实时对话。访问[演示网站](https://durable-chat-template.templates.workers.dev)会根据 URL 中的 ID 将您放入一个独特的聊天室。与他人分享该 ID 即可与他们聊天！这由 [Durable Objects](https://developers.cloudflare.com/durable-objects/) 和 [PartyKit](https://www.partykit.io/) 提供支持。
 
-## How It Works
+## 工作原理
 
-Users are assigned their own chat room when they first visit the page, and can talk to others by sharing their room URL. When someone joins the chat room, a WebSocket connection is opened with a [Durable Object](https://developers.cloudflare.com/durable-objects/) that stores and synchronizes the chat history.
+用户首次访问页面时会被分配到自己的聊天室，可以通过分享房间 URL 与他人交谈。当有人加入聊天室时，会与存储和同步聊天历史记录的 [Durable Object](https://developers.cloudflare.com/durable-objects/) 建立 WebSocket 连接。
 
-The Durable Object instance that manages the chat room runs in one location, and handles all incoming WebSocket connections. Chat messages are stored and retrieved using the [Durable Object SQL Storage API](https://developers.cloudflare.com/durable-objects/api/sql-storage/). When a new user joins the room, the existing chat history is retrieved from the Durable Object for that room. When a user sends a chat message, the message is stored in the Durable Object for that room and broadcast to all other users in that room via WebSocket connection. This template uses the [PartyKit Server API](https://docs.partykit.io/reference/partyserver-api/) to simplify the connection management logic, but could also be implemented using Durable Objects on their own.
+管理聊天室的 Durable Object 实例在一个位置运行，处理所有传入的 WebSocket 连接。聊天消息使用 [Durable Object SQL Storage API](https://developers.cloudflare.com/durable-objects/api/sql-storage/) 进行存储和检索。当新用户加入房间时，会从该房间的 Durable Object 中检索现有的聊天历史记录。当用户发送聊天消息时，消息会存储在该房间的 Durable Object 中，并通过 WebSocket 连接广播给该房间中的所有其他用户。此模板使用 [PartyKit Server API](https://docs.partykit.io/reference/partyserver-api/) 来简化连接管理逻辑，但也可以单独使用 Durable Objects 来实现。
 
 <!-- dash-content-end -->
 
-## Getting Started
+## 快速开始
 
-Outside of this repo, you can start a new project with this template using [C3](https://developers.cloudflare.com/pages/get-started/c3/) (the `create-cloudflare` CLI):
+在此仓库之外，您可以使用 [C3](https://developers.cloudflare.com/pages/get-started/c3/)（`create-cloudflare` CLI）通过此模板启动新项目：
 
 ```
 npm create cloudflare@latest -- --template=cloudflare/templates/durable-chat-template
 ```
 
-A live public deployment of this template is available at [https://durable-chat-template.templates.workers.dev](https://durable-chat-template.templates.workers.dev)
+此模板的在线演示部署可在 [https://durable-chat-template.templates.workers.dev](https://durable-chat-template.templates.workers.dev) 查看
 
-## Setup Steps
+## 设置步骤
 
-1. Install the project dependencies with a package manager of your choice:
+1. 使用您选择的包管理器安装项目依赖：
    ```bash
    npm install
    ```
-2. Deploy the project!
+2. 部署项目！
    ```bash
    npx wrangler deploy
    ```
