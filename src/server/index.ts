@@ -17,75 +17,101 @@ export class Chat extends Server<Env> {
   }
 
   onStart() {
-    // this is where you can initialize things that need to be done before the server starts
-    // for example, load previous messages from a database or a service
-
-    // create the messages table if it doesn't exist with updated schema
-    this.ctx.storage.sql.exec(
-      `CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY, 
-        user TEXT, 
-        role TEXT, 
-        content TEXT,
-        replyTo TEXT,
-        timestamp INTEGER
-      )`,
-    );
-
-    // Check existing table structure and add missing columns
-    const tableInfo = this.ctx.storage.sql.exec(`PRAGMA table_info(messages)`).toArray();
-    const columnNames = tableInfo.map((col: any) => col.name);
-
-    // Add missing columns for existing databases
-    if (!columnNames.includes('replyTo')) {
-      try {
-        this.ctx.storage.sql.exec(`ALTER TABLE messages ADD COLUMN replyTo TEXT`);
-      } catch (e) {
-        console.error('Failed to add replyTo column:', e);
-      }
-    }
-
-    if (!columnNames.includes('timestamp')) {
-      try {
-        this.ctx.storage.sql.exec(`ALTER TABLE messages ADD COLUMN timestamp INTEGER DEFAULT 0`);
-      } catch (e) {
-        console.error('Failed to add timestamp column:', e);
-      }
-    }
-
-    // load the messages from the database, ordered by timestamp (with fallback for missing timestamp)
-    let rawMessages;
+    // Initialize database with proper schema migration
     try {
-      rawMessages = this.ctx.storage.sql
-        .exec(`SELECT * FROM messages ORDER BY timestamp ASC`)
-        .toArray();
-    } catch (e) {
-      // Fallback if timestamp column doesn't exist
-      rawMessages = this.ctx.storage.sql
-        .exec(`SELECT * FROM messages`)
-        .toArray();
-    }
+      // First, try to create the table with the full schema
+      this.ctx.storage.sql.exec(
+        `CREATE TABLE IF NOT EXISTS messages (
+          id TEXT PRIMARY KEY, 
+          user TEXT, 
+          role TEXT, 
+          content TEXT,
+          replyTo TEXT,
+          timestamp INTEGER DEFAULT 0
+        )`,
+      );
 
-    // Convert raw messages to ChatMessage type with proper parsing of replyTo
-    this.messages = rawMessages.map(msg => {
-      const chatMsg: ChatMessage = {
-        id: msg.id as string,
-        user: msg.user as string,
-        role: msg.role as "user" | "assistant",
-        content: msg.content as string,
-        timestamp: msg.timestamp ? Number(msg.timestamp) : Date.now()
-      };
+      // Check if table exists and get its structure
+      const tableInfo = this.ctx.storage.sql.exec(`PRAGMA table_info(messages)`).toArray();
+      const columnNames = tableInfo.map((col: any) => col.name);
 
-      if (msg.replyTo) {
+      // Add missing columns for existing databases
+      if (!columnNames.includes('replyTo')) {
         try {
-          chatMsg.replyTo = JSON.parse(msg.replyTo as string);
+          this.ctx.storage.sql.exec(`ALTER TABLE messages ADD COLUMN replyTo TEXT`);
+          console.log('Added replyTo column to existing table');
         } catch (e) {
-          // Ignore parsing errors
+          console.error('Failed to add replyTo column:', e);
         }
       }
 
-      return chatMsg;
-    });
+      if (!columnNames.includes('timestamp')) {
+        try {
+          this.ctx.storage.sql.exec(`ALTER TABLE messages ADD COLUMN timestamp INTEGER DEFAULT 0`);
+          console.log('Added timestamp column to existing table');
+        } catch (e) {
+          console.error('Failed to add timestamp column:', e);
+        }
+      }
+
+      // Load messages from database with proper error handling
+      this.loadMessagesFromDatabase();
+
+    } catch (error) {
+      console.error('Database initialization error:', error);
+      // Initialize empty messages array as fallback
+      this.messages = [];
+    }
+  }
+
+  private loadMessagesFromDatabase() {
+    try {
+      // First, verify the table structure again after migrations
+      const tableInfo = this.ctx.storage.sql.exec(`PRAGMA table_info(messages)`).toArray();
+      const columnNames = tableInfo.map((col: any) => col.name);
+      
+      let rawMessages;
+      
+      if (columnNames.includes('timestamp')) {
+        // Use timestamp ordering if column exists
+        rawMessages = this.ctx.storage.sql
+          .exec(`SELECT * FROM messages ORDER BY timestamp ASC, id ASC`)
+          .toArray();
+      } else {
+        // Fallback to basic query without timestamp ordering
+        rawMessages = this.ctx.storage.sql
+          .exec(`SELECT * FROM messages ORDER BY id ASC`)
+          .toArray();
+      }
+
+      // Convert raw messages to ChatMessage type
+      this.messages = rawMessages.map(msg => {
+        const chatMsg: ChatMessage = {
+          id: msg.id as string,
+          user: msg.user as string,
+          role: msg.role as "user" | "assistant",
+          content: msg.content as string,
+          timestamp: msg.timestamp ? Number(msg.timestamp) : Date.now()
+        };
+
+        // Parse replyTo if it exists
+        if (msg.replyTo) {
+          try {
+            chatMsg.replyTo = JSON.parse(msg.replyTo as string);
+          } catch (e) {
+            console.warn('Failed to parse replyTo for message:', msg.id, e);
+          }
+        }
+
+        return chatMsg;
+      });
+
+      console.log(`Loaded ${this.messages.length} messages from database`);
+      
+    } catch (error) {
+      console.error('Error loading messages from database:', error);
+      this.messages = [];
+    }
   }
 
   onConnect(connection: Connection) {
