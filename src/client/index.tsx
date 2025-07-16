@@ -910,7 +910,10 @@ function App() {
           <Box sx={{ mt: 2, mb: 3, textAlign: 'center', pb: 1 }}>
             <Chip
               avatar={
-                <Avatar sx={{ bgcolor: getAvatarColor(name) }}>
+                <Avatar sx={{ 
+                  bgcolor: getAvatarColor(name),
+                  color: '#ffffff' // 确保头像中的文字颜色为白色
+                }}>
                   {name.charAt(0).toUpperCase()}
                 </Avatar>
               }
