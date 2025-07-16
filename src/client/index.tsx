@@ -28,7 +28,6 @@ import {
   Popover,
   Button,
   Tooltip,
-  useMediaQuery,
   alpha,
 } from "@mui/material";
 import {
@@ -658,7 +657,27 @@ function App() {
               overflow: 'hidden'
             }}
           >
-            <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
+            <Box
+              sx={{
+                flex: 1,
+                overflow: 'auto',
+                p: 1,
+                scrollBehavior: 'smooth',
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: 'transparent',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                  borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                  background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+                }
+              }}
+            >
               {/* 消息列表 */}
               <List>
                 {messages.map((message) => (
@@ -738,7 +757,7 @@ function App() {
               <div ref={messagesEndRef} />
             </Box>
 
-            {/* 回复预览区域 */}
+            {/* 回复预览区域 - 固定在底部 */}
             {replyTo && (
               <Box
                 sx={{
@@ -746,6 +765,9 @@ function App() {
                   borderTop: 1,
                   borderColor: 'divider',
                   bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  position: 'sticky',
+                  bottom: 'auto',
+                  zIndex: 2
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -834,18 +856,18 @@ function App() {
               </IconButton>
             </Box>
 
-            {/* 颜文字选择器 */}
+            {/* 颜文字选择器 - 调整位置 */}
             <Popover
               open={emojiOpen}
               anchorEl={emojiAnchorEl}
               onClose={handleEmojiClose}
               anchorOrigin={{
                 vertical: 'top',
-                horizontal: 'center',
+                horizontal: 'right',
               }}
               transformOrigin={{
                 vertical: 'bottom',
-                horizontal: 'center',
+                horizontal: 'right',
               }}
             >
               <Box sx={{ p: 2, maxWidth: 400, maxHeight: 500, overflow: 'auto' }}>
@@ -886,8 +908,8 @@ function App() {
             </Popover>
           </Paper>
 
-          {/* 用户信息 */}
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
+          {/* 用户信息 - 增加底部边距，确保不被输入区域遮挡 */}
+          <Box sx={{ mt: 2, mb: 3, textAlign: 'center', pb: 1 }}>
             <Chip
               avatar={
                 <Avatar sx={{ bgcolor: getAvatarColor(name) }}>
