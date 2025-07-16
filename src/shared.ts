@@ -3,11 +3,7 @@ export type ChatMessage = {
   content: string;
   user: string;
   role: "user" | "assistant";
-  replyTo?: {
-    id: string;
-    content: string;
-    user: string;
-  };
+  replyTo?: ChatMessage; // 支持无限嵌套引用
   timestamp: number;
 };
 
@@ -18,11 +14,7 @@ export type Message =
     content: string;
     user: string;
     role: "user" | "assistant";
-    replyTo?: {
-      id: string;
-      content: string;
-      user: string;
-    };
+    replyTo?: ChatMessage; // 支持无限嵌套引用
     timestamp: number;
   }
   | {
@@ -31,11 +23,7 @@ export type Message =
     content: string;
     user: string;
     role: "user" | "assistant";
-    replyTo?: {
-      id: string;
-      content: string;
-      user: string;
-    };
+    replyTo?: ChatMessage; // 支持无限嵌套引用
     timestamp: number;
   }
   | {

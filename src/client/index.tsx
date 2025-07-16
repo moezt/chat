@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { usePartySocket } from "partysocket/react";
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -27,12 +27,7 @@ import {
   Chip,
   Popover,
   Button,
-  Badge,
   Tooltip,
-  Switch,
-  FormControlLabel,
-  Divider,
-  Card,
   useMediaQuery,
   alpha,
 } from "@mui/material";
@@ -48,6 +43,66 @@ import {
 } from "@mui/icons-material";
 
 import { names, type ChatMessage, type Message } from "../shared";
+
+// 递归引用组件
+const NestedQuote: React.FC<{
+  message: ChatMessage;
+  depth?: number;
+  maxDepth?: number;
+  theme: any;
+}> = ({ message, depth = 0, maxDepth = 3, theme }) => {
+  // 限制嵌套深度，避免无限递归
+  if (depth >= maxDepth) {
+    return (
+      <Box
+        sx={{
+          mt: 0.5,
+          p: 1,
+          borderLeft: `2px solid ${theme.palette.grey[400]}`,
+          bgcolor: alpha(theme.palette.grey[500], 0.05),
+          borderRadius: '0 4px 4px 0',
+        }}
+      >
+        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          ... 更多引用层级
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        mt: 0.5,
+        p: 1,
+        borderLeft: `3px solid ${theme.palette.primary.main}`,
+        bgcolor: alpha(theme.palette.primary.main, 0.05),
+        borderRadius: '0 4px 4px 0',
+        mb: depth === 0 ? 1 : 0.5,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+        回复 {message.user}:
+      </Typography>
+
+      {/* 如果有嵌套引用，递归显示 */}
+      {message.replyTo && (
+        <NestedQuote
+          message={message.replyTo}
+          depth={depth + 1}
+          maxDepth={maxDepth}
+          theme={theme}
+        />
+      )}
+
+      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+        {message.content.length > 50
+          ? message.content.substring(0, 50) + '...'
+          : message.content}
+      </Typography>
+    </Box>
+  );
+};
 
 // 创建主题函数，支持黑暗模式
 const createAppTheme = (mode: 'light' | 'dark') => createTheme({
@@ -320,7 +375,7 @@ function App() {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode === 'true';
   });
-  const [replyTo, setReplyTo] = useState<{ id: string; content: string; user: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [typingUsers, setTypingUsers] = useState<{ [key: string]: boolean }>({});
   const [lastReadTimestamp, setLastReadTimestamp] = useState<number>(Date.now());
   const [isTyping, setIsTyping] = useState(false);
@@ -411,13 +466,13 @@ function App() {
   // 自动滚动到底部
   useEffect(() => {
     // 只有当消息是自己发的或者用户已经在底部时才自动滚动
-    const shouldScroll = messages.length > 0 && 
-      (messages[messages.length - 1].user === name || 
-       Math.abs(
-         (messagesEndRef.current?.getBoundingClientRect().bottom || 0) - 
-         window.innerHeight
-       ) < 100);
-    
+    const shouldScroll = messages.length > 0 &&
+      (messages[messages.length - 1].user === name ||
+        Math.abs(
+          (messagesEndRef.current?.getBoundingClientRect().bottom || 0) -
+          window.innerHeight
+        ) < 100);
+
     if (shouldScroll) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -514,11 +569,7 @@ function App() {
 
   // 处理回复消息
   const handleReply = (message: ChatMessage) => {
-    setReplyTo({
-      id: message.id,
-      content: message.content,
-      user: message.user
-    });
+    setReplyTo(message);
   };
 
   // 取消回复
@@ -655,27 +706,12 @@ function App() {
                         </Typography>
                       </Box>
 
-                      {/* 引用消息 */}
+                      {/* 嵌套引用消息 */}
                       {message.replyTo && (
-                        <Box
-                          sx={{
-                            mt: 0.5,
-                            p: 1,
-                            borderLeft: `3px solid ${theme.palette.primary.main}`,
-                            bgcolor: alpha(theme.palette.primary.main, 0.05),
-                            borderRadius: '0 4px 4px 0',
-                            mb: 1
-                          }}
-                        >
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                            回复 {message.replyTo.user}:
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                            {message.replyTo.content.length > 50
-                              ? message.replyTo.content.substring(0, 50) + '...'
-                              : message.replyTo.content}
-                          </Typography>
-                        </Box>
+                        <NestedQuote
+                          message={message.replyTo}
+                          theme={theme}
+                        />
                       )}
 
                       <ListItemText
@@ -723,37 +759,28 @@ function App() {
                   p: 1.5,
                   borderTop: 1,
                   borderColor: 'divider',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
                   bgcolor: alpha(theme.palette.primary.main, 0.05),
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
-                  <ReplyIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                  <Box sx={{ overflow: 'hidden' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                      回复 {replyTo.user}:
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: 'text.secondary',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '100%'
-                      }}
-                    >
-                      {replyTo.content.length > 50
-                        ? replyTo.content.substring(0, 50) + '...'
-                        : replyTo.content}
-                    </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <ReplyIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                        回复消息:
+                      </Typography>
+                    </Box>
+                    {/* 显示完整的嵌套引用结构 */}
+                    <NestedQuote
+                      message={replyTo}
+                      theme={theme}
+                      maxDepth={2} // 在预览区域限制深度
+                    />
                   </Box>
+                  <IconButton size="small" onClick={handleCancelReply} sx={{ ml: 1 }}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
                 </Box>
-                <IconButton size="small" onClick={handleCancelReply}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
               </Box>
             )}
 
