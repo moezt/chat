@@ -32,6 +32,18 @@ export class Chat extends Server<Env> {
       )`,
     );
 
+    // Check if replyTo column exists, if not add it (for existing databases)
+    const tableInfo = this.ctx.storage.sql.exec(`PRAGMA table_info(messages)`).toArray();
+    const hasReplyToColumn = tableInfo.some((col: any) => col.name === 'replyTo');
+    
+    if (!hasReplyToColumn) {
+      try {
+        this.ctx.storage.sql.exec(`ALTER TABLE messages ADD COLUMN replyTo TEXT`);
+      } catch (e) {
+        console.error('Failed to add replyTo column:', e);
+      }
+    }
+
     // load the messages from the database, ordered by timestamp
     const rawMessages = this.ctx.storage.sql
       .exec(`SELECT * FROM messages ORDER BY timestamp ASC`)
