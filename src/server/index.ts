@@ -32,11 +32,12 @@ export class Chat extends Server<Env> {
       )`,
     );
 
-    // Check if replyTo column exists, if not add it (for existing databases)
+    // Check existing table structure and add missing columns
     const tableInfo = this.ctx.storage.sql.exec(`PRAGMA table_info(messages)`).toArray();
-    const hasReplyToColumn = tableInfo.some((col: any) => col.name === 'replyTo');
-    
-    if (!hasReplyToColumn) {
+    const columnNames = tableInfo.map((col: any) => col.name);
+
+    // Add missing columns for existing databases
+    if (!columnNames.includes('replyTo')) {
       try {
         this.ctx.storage.sql.exec(`ALTER TABLE messages ADD COLUMN replyTo TEXT`);
       } catch (e) {
@@ -44,11 +45,27 @@ export class Chat extends Server<Env> {
       }
     }
 
-    // load the messages from the database, ordered by timestamp
-    const rawMessages = this.ctx.storage.sql
-      .exec(`SELECT * FROM messages ORDER BY timestamp ASC`)
-      .toArray();
-      
+    if (!columnNames.includes('timestamp')) {
+      try {
+        this.ctx.storage.sql.exec(`ALTER TABLE messages ADD COLUMN timestamp INTEGER DEFAULT 0`);
+      } catch (e) {
+        console.error('Failed to add timestamp column:', e);
+      }
+    }
+
+    // load the messages from the database, ordered by timestamp (with fallback for missing timestamp)
+    let rawMessages;
+    try {
+      rawMessages = this.ctx.storage.sql
+        .exec(`SELECT * FROM messages ORDER BY timestamp ASC`)
+        .toArray();
+    } catch (e) {
+      // Fallback if timestamp column doesn't exist
+      rawMessages = this.ctx.storage.sql
+        .exec(`SELECT * FROM messages`)
+        .toArray();
+    }
+
     // Convert raw messages to ChatMessage type with proper parsing of replyTo
     this.messages = rawMessages.map(msg => {
       const chatMsg: ChatMessage = {
@@ -58,7 +75,7 @@ export class Chat extends Server<Env> {
         content: msg.content as string,
         timestamp: msg.timestamp ? Number(msg.timestamp) : Date.now()
       };
-      
+
       if (msg.replyTo) {
         try {
           chatMsg.replyTo = JSON.parse(msg.replyTo as string);
@@ -66,7 +83,7 @@ export class Chat extends Server<Env> {
           // Ignore parsing errors
         }
       }
-      
+
       return chatMsg;
     });
   }
@@ -136,7 +153,7 @@ export class Chat extends Server<Env> {
   onMessage(connection: Connection, message: WSMessage) {
     // 解析消息
     const parsed = JSON.parse(message as string) as Message;
-    
+
     // 根据消息类型处理
     if (parsed.type === "add" || parsed.type === "update") {
       // 保存聊天消息到存储
