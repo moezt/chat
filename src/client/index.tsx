@@ -39,7 +39,6 @@ import {
   Close as CloseIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
-  MarkChatRead as MarkChatReadIcon,
 } from "@mui/icons-material";
 
 import { names, type ChatMessage, type Message } from "../shared";
@@ -377,12 +376,9 @@ function App() {
   });
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [typingUsers, setTypingUsers] = useState<{ [key: string]: boolean }>({});
-  const [lastReadTimestamp, setLastReadTimestamp] = useState<number>(Date.now());
+
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // 系统偏好的颜色模式
-  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
 
   // 创建主题
   const theme = useMemo(
@@ -411,11 +407,6 @@ function App() {
               timestamp: message.timestamp || Date.now(),
             },
           ]);
-
-          // 如果消息是新的且不是自己发的，更新未读消息计数
-          if (message.user !== name && message.timestamp > lastReadTimestamp) {
-            // 播放提示音或其他通知
-          }
         } else {
           setMessages((messages) => {
             return messages
@@ -456,9 +447,6 @@ function App() {
             [message.user]: message.isTyping
           }));
         }
-      } else if (message.type === "read") {
-        // 处理已读状态
-        // 这里可以添加逻辑来显示消息已读状态
       }
     },
   });
@@ -556,15 +544,7 @@ function App() {
       );
     }
 
-    // 发送已读状态
-    setLastReadTimestamp(Date.now());
-    socket.send(
-      JSON.stringify({
-        type: "read",
-        user: name,
-        lastRead: Date.now(),
-      } satisfies Message),
-    );
+
   };
 
   // 处理回复消息
@@ -642,35 +622,7 @@ function App() {
             }}
           >
             <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
-              {/* 未读消息计数 */}
-              {messages.filter(m => m.timestamp > lastReadTimestamp && m.user !== name).length > 0 && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    mb: 2
-                  }}
-                >
-                  <Chip
-                    icon={<MarkChatReadIcon />}
-                    label={`${messages.filter(m => m.timestamp > lastReadTimestamp && m.user !== name).length} 条未读消息`}
-                    color="primary"
-                    onClick={() => {
-                      setLastReadTimestamp(Date.now());
-                      socket.send(
-                        JSON.stringify({
-                          type: "read",
-                          user: name,
-                          lastRead: Date.now(),
-                        } satisfies Message),
-                      );
-                      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                  />
-                </Box>
-              )}
-
-              {/* 消息列表 - 使用虚拟化列表优化性能 */}
+              {/* 消息列表 */}
               <List>
                 {messages.map((message) => (
                   <ListItem
@@ -679,10 +631,7 @@ function App() {
                       display: 'flex',
                       alignItems: 'flex-start',
                       py: 1,
-                      // 高亮显示未读消息
-                      bgcolor: message.timestamp > lastReadTimestamp && message.user !== name
-                        ? alpha(theme.palette.primary.main, 0.05)
-                        : 'transparent',
+                      bgcolor: 'transparent',
                       borderRadius: 1
                     }}
                   >
