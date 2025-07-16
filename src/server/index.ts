@@ -104,13 +104,21 @@ export class Chat extends Server<Env> {
   }
 
   onMessage(connection: Connection, message: WSMessage) {
-    // let's broadcast the raw message to everyone else
-    this.broadcast(message);
-
-    // let's update our local messages store
+    // 解析消息
     const parsed = JSON.parse(message as string) as Message;
+    
+    // 根据消息类型处理
     if (parsed.type === "add" || parsed.type === "update") {
+      // 保存聊天消息到存储
       this.saveMessage(parsed);
+      // 广播给所有客户端
+      this.broadcast(message);
+    } else if (parsed.type === "typing" || parsed.type === "read") {
+      // 对于状态类消息，只广播不保存
+      this.broadcast(message);
+    } else {
+      // 其他类型的消息直接广播
+      this.broadcast(message);
     }
   }
 }
