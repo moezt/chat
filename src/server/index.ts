@@ -32,9 +32,9 @@ export class Chat extends Server<Env> {
       )`,
     );
 
-    // load the messages from the database
+    // load the messages from the database, ordered by timestamp
     const rawMessages = this.ctx.storage.sql
-      .exec(`SELECT * FROM messages`)
+      .exec(`SELECT * FROM messages ORDER BY timestamp ASC`)
       .toArray();
       
     // Convert raw messages to ChatMessage type with proper parsing of replyTo
@@ -60,47 +60,65 @@ export class Chat extends Server<Env> {
   }
 
   onConnect(connection: Connection) {
-    connection.send(
-      JSON.stringify({
-        type: "all",
-        messages: this.messages,
-      } satisfies Message),
-    );
+    // 发送现有消息给新连接的客户端
+    if (this.messages.length > 0) {
+      connection.send(
+        JSON.stringify({
+          type: "all",
+          messages: this.messages,
+        } satisfies Message),
+      );
+    }
   }
 
   saveMessage(message: ChatMessage) {
-    // check if the message already exists
-    const existingMessage = this.messages.find((m) => m.id === message.id);
-    if (existingMessage) {
-      this.messages = this.messages.map((m) => {
-        if (m.id === message.id) {
-          return message;
-        }
-        return m;
-      });
-    } else {
-      this.messages.push(message);
-    }
-
     // Ensure timestamp exists
     if (!message.timestamp) {
       message.timestamp = Date.now();
     }
 
+    // check if the message already exists in memory
+    const existingIndex = this.messages.findIndex((m) => m.id === message.id);
+    if (existingIndex !== -1) {
+      // Update existing message
+      this.messages[existingIndex] = message;
+    } else {
+      // Add new message
+      this.messages.push(message);
+    }
+
     // Convert replyTo to string for storage
     const replyToStr = message.replyTo ? JSON.stringify(message.replyTo) : null;
 
-    this.ctx.storage.sql.exec(
-      `INSERT INTO messages (id, user, role, content, replyTo, timestamp) 
-       VALUES ('${message.id}', '${message.user}', '${message.role}', 
-       ${JSON.stringify(message.content)}, 
-       ${replyToStr ? JSON.stringify(replyToStr) : 'NULL'}, 
-       ${message.timestamp}) 
-       ON CONFLICT (id) DO UPDATE SET 
-       content = ${JSON.stringify(message.content)},
-       replyTo = ${replyToStr ? JSON.stringify(replyToStr) : 'NULL'},
-       timestamp = ${message.timestamp}`,
-    );
+    try {
+      // Use prepared statement approach to avoid SQL injection and escaping issues
+      this.ctx.storage.sql.exec(
+        `INSERT OR REPLACE INTO messages (id, user, role, content, replyTo, timestamp) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        message.id,
+        message.user,
+        message.role,
+        message.content,
+        replyToStr,
+        message.timestamp
+      );
+    } catch (error) {
+      console.error('Error saving message:', error);
+      // Fallback: try to save without replyTo if there's an issue
+      try {
+        this.ctx.storage.sql.exec(
+          `INSERT OR REPLACE INTO messages (id, user, role, content, timestamp) 
+           VALUES (?, ?, ?, ?, ?)`,
+          message.id,
+          message.user,
+          message.role,
+          message.content,
+          message.timestamp
+        );
+      } catch (fallbackError) {
+        console.error('Fallback save also failed:', fallbackError);
+      }
+    }
   }
 
   onMessage(connection: Connection, message: WSMessage) {
@@ -111,11 +129,11 @@ export class Chat extends Server<Env> {
     if (parsed.type === "add" || parsed.type === "update") {
       // 保存聊天消息到存储
       this.saveMessage(parsed);
-      // 广播给所有客户端
-      this.broadcast(message);
+      // 广播给所有客户端（包括发送者，确保消息同步）
+      this.broadcastMessage(parsed);
     } else if (parsed.type === "typing" || parsed.type === "read") {
       // 对于状态类消息，只广播不保存
-      this.broadcast(message);
+      this.broadcastMessage(parsed);
     } else {
       // 其他类型的消息直接广播
       this.broadcast(message);

@@ -432,37 +432,30 @@ function App() {
       const message = JSON.parse(evt.data as string) as Message;
 
       if (message.type === "add") {
-        const foundIndex = messages.findIndex((m) => m.id === message.id);
-        if (foundIndex === -1) {
-          setMessages((messages) => [
-            ...messages,
-            {
-              id: message.id,
-              content: message.content,
-              user: message.user,
-              role: message.role,
-              replyTo: message.replyTo,
-              timestamp: message.timestamp || Date.now(),
-            },
-          ]);
-        } else {
-          setMessages((messages) => {
-            return messages
-              .slice(0, foundIndex)
-              .concat({
-                id: message.id,
-                content: message.content,
-                user: message.user,
-                role: message.role,
-                replyTo: message.replyTo,
-                timestamp: message.timestamp || Date.now(),
-              })
-              .concat(messages.slice(foundIndex + 1));
-          });
-        }
+        setMessages((prevMessages) => {
+          const foundIndex = prevMessages.findIndex((m) => m.id === message.id);
+          const newMessage = {
+            id: message.id,
+            content: message.content,
+            user: message.user,
+            role: message.role,
+            replyTo: message.replyTo,
+            timestamp: message.timestamp || Date.now(),
+          };
+          
+          if (foundIndex === -1) {
+            // 新消息，添加到末尾
+            return [...prevMessages, newMessage];
+          } else {
+            // 消息已存在，更新它
+            const updatedMessages = [...prevMessages];
+            updatedMessages[foundIndex] = newMessage;
+            return updatedMessages;
+          }
+        });
       } else if (message.type === "update") {
-        setMessages((messages) =>
-          messages.map((m) =>
+        setMessages((prevMessages) =>
+          prevMessages.map((m) =>
             m.id === message.id
               ? {
                 id: message.id,
@@ -476,7 +469,16 @@ function App() {
           ),
         );
       } else if (message.type === "all") {
-        setMessages(message.messages);
+        // 只在初始加载时设置消息，避免覆盖现有消息
+        setMessages((prevMessages) => {
+          if (prevMessages.length === 0) {
+            return message.messages;
+          }
+          // 如果已有消息，合并新消息但避免重复
+          const existingIds = new Set(prevMessages.map(m => m.id));
+          const newMessages = message.messages.filter(m => !existingIds.has(m.id));
+          return [...prevMessages, ...newMessages];
+        });
       } else if (message.type === "typing") {
         // 处理正在输入的状态
         if (message.user !== name) {
@@ -555,10 +557,7 @@ function App() {
       ...(replyTo ? { replyTo } : {})
     };
 
-    // 更新本地消息列表
-    setMessages((messages) => [...messages, chatMessage]);
-
-    // 发送消息
+    // 发送消息到服务器（不立即更新本地状态，等待服务器确认）
     socket.send(
       JSON.stringify({
         type: "add",
@@ -581,8 +580,6 @@ function App() {
         } satisfies Message),
       );
     }
-
-
   };
 
   // 处理回复消息
