@@ -410,8 +410,18 @@ function App() {
 
   // 自动滚动到底部
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    // 只有当消息是自己发的或者用户已经在底部时才自动滚动
+    const shouldScroll = messages.length > 0 && 
+      (messages[messages.length - 1].user === name || 
+       Math.abs(
+         (messagesEndRef.current?.getBoundingClientRect().bottom || 0) - 
+         window.innerHeight
+       ) < 100);
+    
+    if (shouldScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, name]);
 
   // 处理输入状态
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
