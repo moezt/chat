@@ -49,27 +49,27 @@ const formatDateTime = (timestamp: number) => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  
+
   // 判断是否是今天
   if (messageDate.getTime() === today.getTime()) {
-    return `今天 ${date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
+    return `今天 ${date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     })}`;
   }
-  
+
   // 判断是否是昨天
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   if (messageDate.getTime() === yesterday.getTime()) {
-    return `昨天 ${date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
+    return `昨天 ${date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     })}`;
   }
-  
+
   // 其他日期显示完整日期时间
   return date.toLocaleString('zh-CN', {
     year: 'numeric',
@@ -442,7 +442,7 @@ function App() {
             replyTo: message.replyTo,
             timestamp: message.timestamp || Date.now(),
           };
-          
+
           if (foundIndex === -1) {
             // 新消息，添加到末尾
             return [...prevMessages, newMessage];
@@ -794,6 +794,9 @@ function App() {
                 color="primary"
                 sx={{
                   color: 'primary.main',
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
                   '&:hover': {
                     bgcolor: 'primary.light',
                     color: 'white',
@@ -809,6 +812,9 @@ function App() {
                 sx={{
                   bgcolor: 'primary.main',
                   color: 'white',
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
                   '&:hover': {
                     bgcolor: 'primary.dark',
                   },
