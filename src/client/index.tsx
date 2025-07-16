@@ -741,13 +741,13 @@ function App() {
 
               {/* 输入状态提示 */}
               {Object.entries(typingUsers)
-                .filter(([user, isTyping]) => isTyping)
+                .filter(([, isTyping]) => isTyping)
                 .map(([user]) => user)
                 .length > 0 && (
                   <Box sx={{ p: 1, display: 'flex', alignItems: 'center' }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                       {Object.entries(typingUsers)
-                        .filter(([user, isTyping]) => isTyping)
+                        .filter(([, isTyping]) => isTyping)
                         .map(([user]) => user)
                         .join(', ')} 正在输入...
                     </Typography>
@@ -792,7 +792,7 @@ function App() {
               </Box>
             )}
 
-            {/* 输入区域 - 修改为固定在底部 */}
+            {/* 输入区域 - 固定在底部，不参与滚动 */}
             <Box
               component="form"
               onSubmit={handleSubmit}
@@ -802,10 +802,8 @@ function App() {
                 borderColor: 'divider',
                 display: 'flex',
                 gap: 1,
-                position: 'sticky',
-                bottom: 0,
                 bgcolor: theme.palette.background.paper,
-                zIndex: 1
+                flexShrink: 0, // 防止被压缩
               }}
             >
               <TextField
