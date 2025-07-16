@@ -7,23 +7,23 @@ export type ChatMessage = {
 
 export type Message =
   | {
-      type: "add";
-      id: string;
-      content: string;
-      user: string;
-      role: "user" | "assistant";
-    }
+    type: "add";
+    id: string;
+    content: string;
+    user: string;
+    role: "user" | "assistant";
+  }
   | {
-      type: "update";
-      id: string;
-      content: string;
-      user: string;
-      role: "user" | "assistant";
-    }
+    type: "update";
+    id: string;
+    content: string;
+    user: string;
+    role: "user" | "assistant";
+  }
   | {
-      type: "all";
-      messages: ChatMessage[];
-    };
+    type: "all";
+    messages: ChatMessage[];
+  };
 
 export const names = [
   "蔡徐鲲",
