@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { usePartySocket } from "partysocket/react";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -26,25 +26,55 @@ import {
   Avatar,
   Chip,
   Popover,
-  Grid,
   Button,
+  Badge,
+  Tooltip,
+  Switch,
+  FormControlLabel,
+  Divider,
+  Card,
+  useMediaQuery,
+  alpha,
 } from "@mui/material";
-import { Send as SendIcon, Chat as ChatIcon, EmojiEmotions as EmojiIcon } from "@mui/icons-material";
+import {
+  Send as SendIcon,
+  Chat as ChatIcon,
+  EmojiEmotions as EmojiIcon,
+  Reply as ReplyIcon,
+  Close as CloseIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
+  MarkChatRead as MarkChatReadIcon,
+} from "@mui/icons-material";
 
 import { names, type ChatMessage, type Message } from "../shared";
 
-// Material-UI主题配置
-const theme = createTheme({
+// 创建主题函数，支持黑暗模式
+const createAppTheme = (mode: 'light' | 'dark') => createTheme({
   palette: {
+    mode,
     primary: {
-      main: '#1976d2',
+      main: mode === 'light' ? '#1976d2' : '#90caf9',
     },
     secondary: {
-      main: '#dc004e',
+      main: mode === 'light' ? '#dc004e' : '#f48fb1',
+    },
+    background: {
+      default: mode === 'light' ? '#f5f5f5' : '#121212',
+      paper: mode === 'light' ? '#ffffff' : '#1e1e1e',
     },
   },
   typography: {
     fontFamily: 'Roboto, Arial, sans-serif',
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+        },
+      },
+    },
   },
 });
 
@@ -278,11 +308,32 @@ const kaomojis = [
 ];
 
 function App() {
+  // 基本状态
   const [name] = useState(names[Math.floor(Math.random() * names.length)]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLButtonElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 新增功能状态
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedMode = localStorage.getItem('darkMode');
+    return savedMode === 'true';
+  });
+  const [replyTo, setReplyTo] = useState<{ id: string; content: string; user: string } | null>(null);
+  const [typingUsers, setTypingUsers] = useState<{ [key: string]: boolean }>({});
+  const [lastReadTimestamp, setLastReadTimestamp] = useState<number>(Date.now());
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 系统偏好的颜色模式
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+
+  // 创建主题
+  const theme = useMemo(
+    () => createAppTheme(darkMode ? 'dark' : 'light'),
+    [darkMode]
+  );
 
   // 使用固定的房间ID，所有用户都在同一个房间
   const socket = usePartySocket({
@@ -290,6 +341,7 @@ function App() {
     room: "里岛",
     onMessage: (evt) => {
       const message = JSON.parse(evt.data as string) as Message;
+
       if (message.type === "add") {
         const foundIndex = messages.findIndex((m) => m.id === message.id);
         if (foundIndex === -1) {
@@ -300,8 +352,15 @@ function App() {
               content: message.content,
               user: message.user,
               role: message.role,
+              replyTo: message.replyTo,
+              timestamp: message.timestamp || Date.now(),
             },
           ]);
+
+          // 如果消息是新的且不是自己发的，更新未读消息计数
+          if (message.user !== name && message.timestamp > lastReadTimestamp) {
+            // 播放提示音或其他通知
+          }
         } else {
           setMessages((messages) => {
             return messages
@@ -311,6 +370,8 @@ function App() {
                 content: message.content,
                 user: message.user,
                 role: message.role,
+                replyTo: message.replyTo,
+                timestamp: message.timestamp || Date.now(),
               })
               .concat(messages.slice(foundIndex + 1));
           });
@@ -324,12 +385,25 @@ function App() {
                 content: message.content,
                 user: message.user,
                 role: message.role,
+                replyTo: message.replyTo,
+                timestamp: message.timestamp || m.timestamp,
               }
               : m,
           ),
         );
-      } else {
+      } else if (message.type === "all") {
         setMessages(message.messages);
+      } else if (message.type === "typing") {
+        // 处理正在输入的状态
+        if (message.user !== name) {
+          setTypingUsers(prev => ({
+            ...prev,
+            [message.user]: message.isTyping
+          }));
+        }
+      } else if (message.type === "read") {
+        // 处理已读状态
+        // 这里可以添加逻辑来显示消息已读状态
       }
     },
   });
@@ -339,25 +413,107 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // 处理输入状态
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+
+    // 发送正在输入状态
+    if (!isTyping && newValue.trim()) {
+      setIsTyping(true);
+      socket.send(
+        JSON.stringify({
+          type: "typing",
+          user: name,
+          isTyping: true,
+        } satisfies Message),
+      );
+    }
+
+    // 设置输入超时，停止输入后3秒发送停止输入状态
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      if (isTyping) {
+        setIsTyping(false);
+        socket.send(
+          JSON.stringify({
+            type: "typing",
+            user: name,
+            isTyping: false,
+          } satisfies Message),
+        );
+      }
+    }, 3000);
+  };
+
+  // 处理消息提交
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
+    // 创建消息对象
     const chatMessage: ChatMessage = {
       id: nanoid(8),
       content: inputValue,
       user: name,
       role: "user",
+      timestamp: Date.now(),
+      ...(replyTo ? { replyTo } : {})
     };
 
+    // 更新本地消息列表
     setMessages((messages) => [...messages, chatMessage]);
+
+    // 发送消息
     socket.send(
       JSON.stringify({
         type: "add",
         ...chatMessage,
       } satisfies Message),
     );
+
+    // 清空输入框和引用状态
     setInputValue("");
+    setReplyTo(null);
+
+    // 发送停止输入状态
+    if (isTyping) {
+      setIsTyping(false);
+      socket.send(
+        JSON.stringify({
+          type: "typing",
+          user: name,
+          isTyping: false,
+        } satisfies Message),
+      );
+    }
+
+    // 发送已读状态
+    setLastReadTimestamp(Date.now());
+    socket.send(
+      JSON.stringify({
+        type: "read",
+        user: name,
+        lastRead: Date.now(),
+      } satisfies Message),
+    );
+  };
+
+  // 处理回复消息
+  const handleReply = (message: ChatMessage) => {
+    setReplyTo({
+      id: message.id,
+      content: message.content,
+      user: message.user
+    });
+  };
+
+  // 取消回复
+  const handleCancelReply = () => {
+    setReplyTo(null);
   };
 
   const getAvatarColor = (username: string) => {
@@ -396,8 +552,20 @@ function App() {
             <Chip
               label="里岛"
               variant="outlined"
-              sx={{ color: 'white', borderColor: 'white' }}
+              sx={{ color: 'white', borderColor: 'white', mr: 2 }}
             />
+            <Tooltip title={darkMode ? "切换到亮色模式" : "切换到暗色模式"}>
+              <IconButton
+                color="inherit"
+                onClick={() => {
+                  const newMode = !darkMode;
+                  setDarkMode(newMode);
+                  localStorage.setItem('darkMode', String(newMode));
+                }}
+              >
+                {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Tooltip>
           </Toolbar>
         </AppBar>
 
@@ -413,6 +581,35 @@ function App() {
             }}
           >
             <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
+              {/* 未读消息计数 */}
+              {messages.filter(m => m.timestamp > lastReadTimestamp && m.user !== name).length > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    mb: 2
+                  }}
+                >
+                  <Chip
+                    icon={<MarkChatReadIcon />}
+                    label={`${messages.filter(m => m.timestamp > lastReadTimestamp && m.user !== name).length} 条未读消息`}
+                    color="primary"
+                    onClick={() => {
+                      setLastReadTimestamp(Date.now());
+                      socket.send(
+                        JSON.stringify({
+                          type: "read",
+                          user: name,
+                          lastRead: Date.now(),
+                        } satisfies Message),
+                      );
+                      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  />
+                </Box>
+              )}
+
+              {/* 消息列表 - 使用虚拟化列表优化性能 */}
               <List>
                 {messages.map((message) => (
                   <ListItem
@@ -420,7 +617,12 @@ function App() {
                     sx={{
                       display: 'flex',
                       alignItems: 'flex-start',
-                      py: 1
+                      py: 1,
+                      // 高亮显示未读消息
+                      bgcolor: message.timestamp > lastReadTimestamp && message.user !== name
+                        ? alpha(theme.palette.primary.main, 0.05)
+                        : 'transparent',
+                      borderRadius: 1
                     }}
                   >
                     <Avatar
@@ -434,19 +636,116 @@ function App() {
                       {message.user.charAt(0).toUpperCase()}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>
-                        {message.user}
-                      </Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>
+                          {message.user}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </Typography>
+                      </Box>
+
+                      {/* 引用消息 */}
+                      {message.replyTo && (
+                        <Box
+                          sx={{
+                            mt: 0.5,
+                            p: 1,
+                            borderLeft: `3px solid ${theme.palette.primary.main}`,
+                            bgcolor: alpha(theme.palette.primary.main, 0.05),
+                            borderRadius: '0 4px 4px 0',
+                            mb: 1
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                            回复 {message.replyTo.user}:
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                            {message.replyTo.content.length > 50
+                              ? message.replyTo.content.substring(0, 50) + '...'
+                              : message.replyTo.content}
+                          </Typography>
+                        </Box>
+                      )}
+
                       <ListItemText
                         primary={message.content}
                         sx={{ mt: 0.5 }}
                       />
+
+                      {/* 消息操作按钮 */}
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleReply(message)}
+                          sx={{ p: 0.5 }}
+                        >
+                          <ReplyIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
                     </Box>
                   </ListItem>
                 ))}
               </List>
+
+              {/* 输入状态提示 */}
+              {Object.entries(typingUsers)
+                .filter(([user, isTyping]) => isTyping)
+                .map(([user]) => user)
+                .length > 0 && (
+                  <Box sx={{ p: 1, display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      {Object.entries(typingUsers)
+                        .filter(([user, isTyping]) => isTyping)
+                        .map(([user]) => user)
+                        .join(', ')} 正在输入...
+                    </Typography>
+                  </Box>
+                )}
+
               <div ref={messagesEndRef} />
             </Box>
+
+            {/* 回复预览区域 */}
+            {replyTo && (
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderTop: 1,
+                  borderColor: 'divider',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
+                  <ReplyIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                      回复 {replyTo.user}:
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: 'text.secondary',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%'
+                      }}
+                    >
+                      {replyTo.content.length > 50
+                        ? replyTo.content.substring(0, 50) + '...'
+                        : replyTo.content}
+                    </Typography>
+                  </Box>
+                </Box>
+                <IconButton size="small" onClick={handleCancelReply}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            )}
 
             {/* 输入区域 */}
             <Box
@@ -454,7 +753,7 @@ function App() {
               onSubmit={handleSubmit}
               sx={{
                 p: 2,
-                borderTop: 1,
+                borderTop: replyTo ? 0 : 1,
                 borderColor: 'divider',
                 display: 'flex',
                 gap: 1
@@ -465,7 +764,7 @@ function App() {
                 variant="outlined"
                 placeholder={`你好 ${name}! 输入一些信息吧...`}
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={handleInputChange}
                 autoComplete="off"
                 sx={{ flex: 1 }}
               />

@@ -3,6 +3,12 @@ export type ChatMessage = {
   content: string;
   user: string;
   role: "user" | "assistant";
+  replyTo?: {
+    id: string;
+    content: string;
+    user: string;
+  };
+  timestamp: number;
 };
 
 export type Message =
@@ -12,6 +18,12 @@ export type Message =
     content: string;
     user: string;
     role: "user" | "assistant";
+    replyTo?: {
+      id: string;
+      content: string;
+      user: string;
+    };
+    timestamp: number;
   }
   | {
     type: "update";
@@ -19,10 +31,26 @@ export type Message =
     content: string;
     user: string;
     role: "user" | "assistant";
+    replyTo?: {
+      id: string;
+      content: string;
+      user: string;
+    };
+    timestamp: number;
   }
   | {
     type: "all";
     messages: ChatMessage[];
+  }
+  | {
+    type: "typing";
+    user: string;
+    isTyping: boolean;
+  }
+  | {
+    type: "read";
+    user: string;
+    lastRead: number;
   };
 
 export const names = [

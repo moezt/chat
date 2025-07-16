@@ -20,15 +20,43 @@ export class Chat extends Server<Env> {
     // this is where you can initialize things that need to be done before the server starts
     // for example, load previous messages from a database or a service
 
-    // create the messages table if it doesn't exist
+    // create the messages table if it doesn't exist with updated schema
     this.ctx.storage.sql.exec(
-      `CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, user TEXT, role TEXT, content TEXT)`,
+      `CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY, 
+        user TEXT, 
+        role TEXT, 
+        content TEXT,
+        replyTo TEXT,
+        timestamp INTEGER
+      )`,
     );
 
     // load the messages from the database
-    this.messages = this.ctx.storage.sql
+    const rawMessages = this.ctx.storage.sql
       .exec(`SELECT * FROM messages`)
-      .toArray() as ChatMessage[];
+      .toArray();
+      
+    // Convert raw messages to ChatMessage type with proper parsing of replyTo
+    this.messages = rawMessages.map(msg => {
+      const chatMsg: ChatMessage = {
+        id: msg.id as string,
+        user: msg.user as string,
+        role: msg.role as "user" | "assistant",
+        content: msg.content as string,
+        timestamp: msg.timestamp ? Number(msg.timestamp) : Date.now()
+      };
+      
+      if (msg.replyTo) {
+        try {
+          chatMsg.replyTo = JSON.parse(msg.replyTo as string);
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+      
+      return chatMsg;
+    });
   }
 
   onConnect(connection: Connection) {
@@ -54,14 +82,24 @@ export class Chat extends Server<Env> {
       this.messages.push(message);
     }
 
+    // Ensure timestamp exists
+    if (!message.timestamp) {
+      message.timestamp = Date.now();
+    }
+
+    // Convert replyTo to string for storage
+    const replyToStr = message.replyTo ? JSON.stringify(message.replyTo) : null;
+
     this.ctx.storage.sql.exec(
-      `INSERT INTO messages (id, user, role, content) VALUES ('${
-        message.id
-      }', '${message.user}', '${message.role}', ${JSON.stringify(
-        message.content,
-      )}) ON CONFLICT (id) DO UPDATE SET content = ${JSON.stringify(
-        message.content,
-      )}`,
+      `INSERT INTO messages (id, user, role, content, replyTo, timestamp) 
+       VALUES ('${message.id}', '${message.user}', '${message.role}', 
+       ${JSON.stringify(message.content)}, 
+       ${replyToStr ? JSON.stringify(replyToStr) : 'NULL'}, 
+       ${message.timestamp}) 
+       ON CONFLICT (id) DO UPDATE SET 
+       content = ${JSON.stringify(message.content)},
+       replyTo = ${replyToStr ? JSON.stringify(replyToStr) : 'NULL'},
+       timestamp = ${message.timestamp}`,
     );
   }
 
