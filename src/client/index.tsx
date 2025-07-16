@@ -652,13 +652,13 @@ function App() {
         {/* 顶部工具栏占位符 */}
         <Toolbar />
 
-        {/* 聊天消息区域 - 可滚动区域，占据除了顶部和底部之外的所有空间 */}
+        {/* 聊天消息区域 - 固定容器，只有内部消息列表可滚动 */}
         <Box sx={{
           flex: 1,
-          overflow: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          mb: 0
+          mb: 0,
+          overflow: 'hidden' // 防止整体滚动
         }}>
           <Container
             maxWidth="md"
@@ -667,7 +667,8 @@ function App() {
               display: 'flex',
               flexDirection: 'column',
               py: 2,
-              pb: 0
+              pb: 0,
+              overflow: 'hidden' // 防止容器滚动
             }}
           >
             <Paper
@@ -676,14 +677,15 @@ function App() {
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                overflow: 'hidden',
+                overflow: 'hidden', // 防止Paper滚动
                 mb: 0
               }}
             >
+              {/* 只有这个Box是可滚动的，包含消息列表 */}
               <Box
                 sx={{
                   flex: 1,
-                  overflow: 'auto',
+                  overflow: 'auto', // 只有这里允许滚动
                   p: 1,
                   scrollBehavior: 'smooth',
                   '&::-webkit-scrollbar': {
